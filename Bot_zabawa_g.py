@@ -2010,7 +2010,7 @@ PRZEKLENSTWA = [
     "jebany chuju", "pierdol sie", "zjebie", "skurwysynie", "kurwidołek", "pizde", "cipa"
 ]
 # Lista kanałów do monitorowania
-MONITOROWANE_KANALY = [1041423745002254368, 123456789012345678]  # <-- dodaj więcej ID tutaj
+MONITOROWANE_KANALY = [1041423745002254368, 123456789012345678, 1444025778055549111]  # <-- dodaj więcej ID tutaj
 
 # Licznik ostrzeżeń dla użytkowników
 ostrzezenia = defaultdict(int)
@@ -2054,6 +2054,7 @@ async def on_message(message):
 
 
 bot.run(os.getenv("TOKEN"))
+
 
 
 
