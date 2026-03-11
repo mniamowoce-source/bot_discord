@@ -132,6 +132,7 @@ async def play(ctx, *, search: str):
     else:
         source = discord.FFmpegPCMAudio(
             url,
+            executable="ffmpeg",
             before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
             options="-vn"
         )
@@ -2971,6 +2972,7 @@ async def on_message(message):
 
 
 bot.run(os.getenv("TOKEN"))
+
 
 
 
