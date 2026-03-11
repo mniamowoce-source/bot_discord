@@ -1,15 +1,21 @@
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 import yt_dlp 
 import asyncio
 import random
 import requests
 import os
+import re
 import sys
 import aiohttp
 from datetime import datetime, timedelta
 from collections import defaultdict, Counter
+from operator import itemgetter
+from bs4 import BeautifulSoup
 import openai
+import io
+
+
 
 intents = discord.Intents.default()
 intents.members = True
@@ -26,6 +32,7 @@ RMF_FM_STREAM_URL = "http://195.150.20.242:8000/rmf_fm"  # Link do RMF FM
 @bot.event
 async def on_ready():
     print(f'✅ Zalogowano jako {bot.user}')
+
 
 
 queues = {}
@@ -101,7 +108,7 @@ async def play(ctx, *, search: str):
 
     # Główna wiadomość embed
     embed = discord.Embed(
-        title=f"[{title}]({video_url})",
+        title=f"🎶 Zaczynam śpiewać: [{title}]({video_url})",
         color=discord.Color.green() if not (voice_client.is_playing() or voice_client.is_paused()) else discord.Color.blue()
     )
     if thumbnail:
@@ -143,7 +150,7 @@ async def queue(ctx):
     embed.description = description
     await ctx.send(embed=embed)
 
-@bot.command()
+@bot.command(aliases=["wyjdz"])
 async def stop(ctx):
     voice_client = ctx.voice_client
     if voice_client:
@@ -361,25 +368,42 @@ async def stopradio(ctx):
 
 @bot.command()
 @commands.cooldown(rate=1, per=10, type=commands.BucketType.user)
-async def yesno(ctx, *, content: str):
+async def yesno(ctx, *, question: str = None):
     try:
-        countdown_msg = await ctx.send("3...")
+        if question is None:
+            question = "Nie podano pytania ❔"
+
+        countdown_msg = await ctx.send(
+            embed=discord.Embed(
+                title="🤔 Odpowiedź na pytanie:",
+                description=f"**{question}**\n\n3...",
+                color=discord.Color.blue()
+            )
+        )
 
         await asyncio.sleep(1)
-        await countdown_msg.edit(content="2...")
+        await countdown_msg.edit(embed=discord.Embed(
+            title="🤔 Odpowiedź na pytanie:",
+            description=f"**{question}**\n\n2...",
+            color=discord.Color.blue()
+        ))
 
         await asyncio.sleep(1)
-        await countdown_msg.edit(content="1...")
+        await countdown_msg.edit(embed=discord.Embed(
+            title="🤔 Odpowiedź na pytanie:",
+            description=f"**{question}**\n\n1...",
+            color=discord.Color.blue()
+        ))
 
         await asyncio.sleep(1)
-        choice = random.choice(["Tak", "Nie"])
+        response = random.choice(["Tak! ✅", "Nie! ❌"])
         embed = discord.Embed(
-            title=choice,
-            description=content,
-            color=discord.Color.green() if choice == "Tak" else discord.Color.red()
+            title="🤔 Odpowiedź na pytanie:",
+            description=f"**{question}**\n\n{response}",
+            color=discord.Color.green()
         )
         embed.set_footer(text="Komendy można użyć raz na 10 sekund")
-        await countdown_msg.edit(content=None, embed=embed)
+        await countdown_msg.edit(embed=embed)
 
     except Exception as e:
         await ctx.send(f"Wystąpił błąd: {e}")
@@ -388,6 +412,7 @@ async def yesno(ctx, *, content: str):
 async def yesno_error(ctx, error):
     if isinstance(error, commands.CommandOnCooldown):
         await ctx.send(f"Poczekaj {error.retry_after:.1f} sekundy przed ponownym użyciem.")
+
 
 
 @bot.command()
@@ -492,6 +517,32 @@ async def Grubek_error(ctx, error):
         raise error
 
 
+@bot.command()
+@commands.cooldown(rate=1, per=60.0, type=commands.BucketType.user)  # 1 użycie co 60 sekund na użytkownika
+async def Dawidek(ctx):
+    try:
+        user = await bot.fetch_user(952332726147620974)  # <-- tutaj wstaw ID Dawidka
+        link = "https://discord.com/channels/927491981670776862/927491981670776866"
+        message = (
+            "wbijaj!\n\n"
+            f"Wiadomość wysłana przez użytkownika: **{ctx.author.name}**\n\n"
+            f"Link: {link}"
+        )
+        await user.send(message)
+        await ctx.send("Wiadomość do Dawidka została wysłana.")
+    except Exception as e:
+        await ctx.send(f"Nie udało się wysłać wiadomości do Dawidka. Błąd: {e}")
+
+# Obsługa błędów cooldownu
+@Dawidek.error
+async def Dawidek_error(ctx, error):
+    if isinstance(error, commands.CommandOnCooldown):
+        await ctx.send(f"Ta komenda jest na cooldownie. Spróbuj ponownie za {int(error.retry_after)} sekund.")
+    else:
+        raise error
+
+
+
 
 @bot.command()
 async def pies(ctx):
@@ -537,7 +588,7 @@ async def monka_error(ctx, error):
 import discord
 from discord.ext import commands
 
-@bot.command(aliases=['ar2'])
+@bot.command(es=['ar2alias'])
 async def ar(ctx):
     image_url = "https://tr.rbxcdn.com/180DAY-f12b0d431bdfd9ff446b8b2cc76ba94d/768/432/Image/Webp/noFilter"  # <-- podaj swój link tutaj
 
@@ -677,17 +728,18 @@ async def vagrant(ctx):
 
 
 @bot.command()
+@commands.cooldown(rate=1, per=30, type=commands.BucketType.user)
 async def pomoc(ctx):
-    embed = discord.Embed(
+    embed1 = discord.Embed(
         title="🤖 Pomoc — Bot dedykowany Apocalypse Rising 2",
         description="Poniżej znajdziesz listę dostępnych komend uporządkowaną według kategorii:",
         color=discord.Color.from_rgb(47, 49, 54)
     )
+    await ctx.send(embed=embed1)
 
-    # 🎮 Komendy AR2
-    embed.add_field(
-        name="🎮 **Apocalypse Rising 2**",
-        value=(
+    embed2 = discord.Embed(
+        title="🎮 **Apocalypse Rising 2**",
+        description=(
             "• `!ar` / `!ar2` — Link do gry\n"
             "• `!loadout` — 🎒 Losowy loadout\n"
             "• `!dobryloadout` — 💎 Lepszy loadout\n"
@@ -707,27 +759,30 @@ async def pomoc(ctx):
             "• `!rush / !rusher` — ⚡ Tworzy loadout dla gracza na szybkiego rusha\n"
             "• `!serverinfo` - podaje aktualną liczbe graczy grających w Apocalype Rising 2\n"
             "• `!balance` — 💰 Pokazuje status konta (ilość monet)\n"
-            "• `!shop` — 🛒 Wyświetla dostępne przedmioty do kupienia w sklepie" 
+            "• `!shop` — 🛒 Wyświetla dostępne przedmioty do kupienia w sklepie"
         ),
-        inline=False
+        color=discord.Color.from_rgb(47, 49, 54)
     )
+    await ctx.send(embed=embed2)
+    await asyncio.sleep(1)
 
-    # 📩 Komendy pingujące użytkowników
-    embed.add_field(
-        name="📬 **Pingowanie użytkowników** *(Cooldown: 60s)*",
-        value=(
+    embed3 = discord.Embed(
+        title="📬 **Pingowanie użytkowników** *(Cooldown: 60s)*",
+        description=(
             "• `!Grubek` — Wyślij Grubkowi zaproszenie do wbicia\n"
             "• `!Kokonut` — Wyślij Kokonutowi zaproszenie do wbicia\n"
             "• `!Monka` — Wyślij Monce zaproszenie do wbicia\n"
-            "• `!lukasz` — Wyślij Laxkowi zaproszenie do wbicia"
+            "• `!lukasz` — Wyślij Laxkowi zaproszenie do wbicia\n"
+            "• `!Piotrek` — Wyślij Piotrkowi zaproszenie do wbicia"
         ),
-        inline=False
+        color=discord.Color.from_rgb(47, 49, 54)
     )
+    await ctx.send(embed=embed3)
+    await asyncio.sleep(1)
 
-    # 🎶 Muzyka i radio
-    embed.add_field(
-        name="🎶 **Muzyka & Radio**",
-        value=(
+    embed4 = discord.Embed(
+        title="🎶 **Muzyka & Radio**",
+        description=(
             "• `!graj [nazwa]` — ▶️ Odtwórz z YouTube\n"
             "• `!zloteprzeboje` — 📻 Złote Przeboje\n"
             "• `!rmffm` — 🎧 RMF FM\n"
@@ -735,52 +790,65 @@ async def pomoc(ctx):
             "• `!eska` — 📡 Odtwarzaj Radio Eska\n"
             "• `!volume [0-100]` — 🔊 Ustaw głośność odtwarzania"
         ),
-        inline=False
+        color=discord.Color.from_rgb(47, 49, 54)
     )
+    await ctx.send(embed=embed4)
+    await asyncio.sleep(1)
 
-    # 🐾 Zwierzaki & Random
-    embed.add_field(
-        name="🌟 **Random & Zwierzaki**",
-        value=(
-            "• `!pies` — 🐶 Losowy piesek\n"
-            "• `!kot` — 🐱 Losowy kot\n"
-            "• `!lis` — 🦊 Losowy lisek (gif)\n"
-            "• `!food` — 🍔 Random jedzenie\n"
-            "• `!yesno` — 🎲 Tak albo Nie\n"
-            "• `!vagrant` — 🖼️ Losowy vagrant\n"
-            "• `!gift [@gracz]` — 🎁 Podaruj prezent wybranemu graczowi"
-        ),
-        inline=False
+    embed5 = discord.Embed(
+        title="🌟 **Random & Zwierzaki**",
+        description=(
+    "• `!pies` — 🐶 Losowy piesek\n"
+    "• `!kot` — 🐱 Losowy kot\n"
+    "• `!lis` — 🦊 Losowy lisek (gif)\n"
+    "• `!food` — 🍔 Random jedzenie\n"
+    "• `!yesno` — 🎲 Tak albo Nie\n"
+    "• `!yesno (treść)` — 🎲 Odpowiada Tak lub Nie na pytanie\n"
+    "• `!vagrant` — 🖼️ Losowy vagrant\n"
+    "• `!gift [@gracz]` — 🎁 Podaruj prezent wybranemu graczowi\n"
+    "• `!buy <przedmiot> [ilość]` — 🛒 Kup przedmiot ze sklepu\n"
+    "• `!zdj <treść>` — 🖼️ Wygeneruj obraz AI\n"
+    "• `!cowboy` — 🤠 Kowbojski gif\n"
+    "• `!clear <liczba>` — 🧹 Wyczyść czat (mod/admin)\n"
+    "• `!balance` — 💰 Pokazuje kase\n"
+    "• `!zart` — 🛒 mowi zart\n"
+    "• `!team` — 📢 Pinguj cały team (rola Team)\n"
+    ),
+        color=discord.Color.from_rgb(47, 49, 54)
     )
+    await ctx.send(embed=embed5)
 
-    # 🗑️ Śmieci
-    embed.add_field(
-        name="🗑️ **Śmieci**",
-        value=(
+    embed6 = discord.Embed(
+        title="🗑️ **Śmieci**",
+        description=(
             "• `!smiec [nazwa]` — Dodaj kogoś do listy śmieci\n"
             "• `!smiecie` — Wyświetl listę śmieci\n"
             "• `!czyscsmieci` — Wyczyść listę śmieci"
         ),
-        inline=False
+        color=discord.Color.from_rgb(47, 49, 54)
     )
+    await ctx.send(embed=embed6)
+    await asyncio.sleep(1)
 
-    # 🏅 Pojedynki / Mecze
-    embed.add_field(
-        name="🏅 **Pojedynki & Mecze**",
-        value=(
+    embed7 = discord.Embed(
+        title="🏅 **Pojedynki & Mecze**",
+        description=(
             "• `!mecz (gracz1) / (gracz2) (Wynik np. 3:0)` — Zapisuje wynik graczy\n"
             "• `!pojedynki` / `!mecze` — Wyświetla wyniki wszystkich graczy\n"
             "• `!wynik (gracz)` — Wyświetla wynik meczy konkretnego gracza"
         ),
-        inline=False
+        color=discord.Color.from_rgb(47, 49, 54)
     )
-
-    embed.set_footer(
+    embed7.set_footer(
         text=f"📨 Wywołano przez: {ctx.author.name}",
         icon_url=ctx.author.avatar.url if ctx.author.avatar else None
     )
+    await ctx.send(embed=embed7)
 
-    await ctx.send(embed=embed)
+@pomoc.error
+async def pomoc_error(ctx, error):
+    if isinstance(error, commands.CommandOnCooldown):
+        await ctx.send(f"⏳ Poczekaj {error.retry_after:.1f} sekund zanim ponownie użyjesz komendy `!pomoc`.")
 
 #zlote przeboje
 #zlote przeboje
@@ -1011,21 +1079,21 @@ async def grips(ctx):
     wybrany = random.choice(grips)
     await ctx.send(f"🖐️ Wylosowany grip z AR2: **{wybrany}**")
 
-@bot.command(name="loadout", aliases=["zestaw"])
+@bot.command(name="loadout", aliases=["zestaw", "ls"])
 @commands.cooldown(rate=1, per=10, type=commands.BucketType.user)
 async def loadout(ctx):
     primary_weapons = [
         "M16A1", "AK-47", "M14", "FAL", "M1 Garand", "M1 Carbine", "M249 SAW", "M60", "RPK", "PKM",
         "M1903 Springfield", "Model 788", "PSG-1", "Dragunov", "M21 DMR", "Mini-14", "Model 94",
         "Model 94 Ranger", "M1 Thompson", "M14 DMR", "M16A2", "AUG", "Coach Gun", "Maverick 88", 
-        "Maverick 88 Tactical", "Spas-12", "Auto-5", "M3A1", "PP-bizon19", "M2-Carbine", "Nosin-nagant"
-        "SKS", "Patriot", "AC-556", "AKM", "AK-74", "M1919A2 BAR", "G3", "AS VAL", "AK-47", "XM177","l96A1", "M40A1"
+        "Maverick 88 Tactical", "Spas-12", "Auto-5", "M3A1", "PP-bizon19", "M2-Carbine", "Mosin-nagant",
+        "SKS", "Patriot", "AC-556", "AKM", "AK-74", "M1919A2 BAR", "G3", "AS VAL", "AK-47", "XM177", "l96A1", "M40A1", "bez"
     ]
 
     secondary_weapons = [
         "Desert Eagle", "Hi-Power", "G17", "M1911", "M9", "Model 459", "P38", "P220", "Makarov",
         "MAC-10", "TEC-9", "Skorpion vz.65", "Sweeper Desert Eagle", "Snake's MAC-10", "MP5K", "UZI",
-        "AO-46", "Rogue UZI", "Model 29", "Snubnose", "Python", "Grubek(bez)", "Silent partner", "Snake MAC10"
+        "AO-46", "Rogue UZI", "Model 29", "Snubnose", "Python", "Grubek(bez)", "Silent partner", "Snake MAC10", ""
     ]
 
     primary_optics = [
@@ -1034,7 +1102,7 @@ async def loadout(ctx):
     ]
 
     secondary_optics = [
-         "Kobra Sight", "Reflex Sight", "bez sighta noobie"
+        "Kobra Sight", "Reflex Sight", "bez sighta noobie", ""
     ]
 
     primary_suppressors = [
@@ -1047,11 +1115,11 @@ async def loadout(ctx):
     ]
 
     primary_grips = [
-        "Laser Sight", "Green Laser Sight", "Pink Laser Sight", "Folding Foregrip", "Short Foregrip", "Straight Foregrip", "bez"
+        "Laser Sight", "Green Laser Sight", "Folding Foregrip", "Short Foregrip", "Straight Foregrip", "bez"
     ]
 
     secondary_grips = [
-        "Laser Sight", "Green Laser Sight", "Pink Laser Sight", "bez"
+        "Laser Sight", "Green Laser Sight", "",
     ]
 
     # Losowanie
@@ -1067,8 +1135,13 @@ async def loadout(ctx):
     primary_grip = random.choice(primary_grips)
     secondary_grip = random.choice(secondary_grips)
 
-    # Tworzenie embeda
-    embed = discord.Embed(title="🔫 Twój losowy loadout z Apocalypse Rising 2", color=0x1abc9c)
+    # Tworzenie embeda z nazwą użytkownika
+    embed = discord.Embed(
+        title=f"{ctx.author.display_name}",
+        description="",
+        color=0x1abc9c
+    )
+    embed.set_author(name=ctx.author.name, icon_url=ctx.author.display_avatar.url)
     embed.add_field(name="🔹 Broń główna", value=f"**{primary}**", inline=False)
     embed.add_field(name="• Celownik", value=primary_optic, inline=True)
     embed.add_field(name="• Tłumik", value=primary_suppressor, inline=True)
@@ -1088,7 +1161,8 @@ async def loadout_error(ctx, error):
     if isinstance(error, commands.CommandOnCooldown):
         await ctx.send(f"⏳ Poczekaj jeszcze {error.retry_after:.1f} sekund zanim użyjesz tej komendy ponownie.")
 
-@bot.command(name="privloadout")
+
+@bot.command(name="privloadout", aliases=["pls"])
 @commands.cooldown(rate=1, per=10, type=commands.BucketType.user)
 async def privloadout(ctx):
     primary_weapons = [
@@ -1115,7 +1189,7 @@ async def privloadout(ctx):
     ]
 
     primary_suppressors = [
-        "Oil Filter Suppressor", "Military Suppressor", "Standard Suppressor", "Bez suppresora"
+        "Oil Filter Suppressor", "Military Suppressor", "Standard Suppressor", "Bez suppresora",
         "Military Suppressor", "Standard Suppressor", "NATO Operator Suppressor", "Soviet Spetsnaz Suppressor"
     ]
 
@@ -1124,7 +1198,7 @@ async def privloadout(ctx):
     ]
 
     primary_grips = [
-        "Laser Sight", "Green Laser Sight", "Pink Laser Sight", "Folding Foregrip", "Short Foregrip", "Straight Foregrip"
+        "Laser Sight", "Green Laser Sight", "Folding Foregrip", "Short Foregrip", "Straight Foregrip"
     ]
 
     secondary_grips = [
@@ -1161,17 +1235,16 @@ async def privloadout(ctx):
 
 
 
-@bot.command(name="dobryloadout")
+@bot.command(name="dobryloadout", aliases=["dls"])
 @commands.cooldown(rate=1, per=10, type=commands.BucketType.user)
 async def dobryloadout(ctx):
-    # Dobre bronie główne
     primary_weapons = [
-        "AK-47", "FAL", "M249 SAW", "PKM", "G3", "AS VAL", "AK-74", "AUG", "AKM", "AC-556"
+        "AK-47", "FAL", "M249 SAW", "PKM", "G3", "AS VAL", "AK-74", "AUG", "AKM", "AC-556", "M1919A6", "m1919a2 bar", "AKS-74U", "AKS-74U Filtered", "AKS-74U Spetsnaz",
+        "m1919a6 Trooper", "M249 SAW TROOPER", "XM 177", "M4A1", "M16A1", "M14", "M60", "RPK", "PATRIOT(Nwm czy jest na vs)", "OTS groza", "RPK-74"
     ]
 
-    # Dobre bronie boczne
     secondary_weapons = [
-        "Desert Eagle", "Snake's MAC-10", "Silent partner", "Python", "Sweeper Desert Eagle", "MAC-10", "MP5K"
+        "Desert Eagle", "Snake's MAC-10", "Silent partner", "Python", "Sweeper Desert Eagle", "MAC-10", "MP5K", "M93r"
     ]
 
     primary_optics = [
@@ -1191,7 +1264,7 @@ async def dobryloadout(ctx):
     ]
 
     primary_grips = [
-        "Laser Sight", "Green Laser Sight", "Folding Foregrip", "Straight Foregrip"
+        "Laser Sight", "Green Laser Sight", "Folding Foregrip", "Straight Foregrip", "Short Grip"
     ]
 
     secondary_grips = [
@@ -1211,8 +1284,14 @@ async def dobryloadout(ctx):
     primary_grip = random.choice(primary_grips)
     secondary_grip = random.choice(secondary_grips)
 
-    # Tworzenie embeda
-    embed = discord.Embed(title="🎯 Twój DOBRY loadout z Apocalypse Rising 2", color=0xe67e22)
+    # Embed z nazwą użytkownika
+    embed = discord.Embed(
+        title=f"Dobry loadout {ctx.author.display_name}",
+        description="",
+        color=0xe67e22
+    )
+    embed.set_author(name=ctx.author.name, icon_url=ctx.author.display_avatar.url)
+
     embed.add_field(name="🔹 Broń główna", value=f"**{primary}**", inline=False)
     embed.add_field(name="• Celownik", value=primary_optic, inline=True)
     embed.add_field(name="• Tłumik", value=primary_suppressor, inline=True)
@@ -1233,13 +1312,95 @@ async def dobryloadout_error(ctx, error):
         await ctx.send(f"⏳ Poczekaj jeszcze {error.retry_after:.1f} sekund zanim użyjesz tej komendy ponownie.")
 
 
+@bot.command(name="dobryprivloadout", aliases=["dpls"])
+@commands.cooldown(rate=1, per=10, type=commands.BucketType.user)
+async def dobryprivloadout(ctx):
+    primary_weapons = [
+        "AK-47", "FAL", "M249 SAW", "PKM", "G3", "AS VAL", "AK-74", "AUG", "AKM", "AC-556", "M1919A6", "m1919a2 bar", "AKS-74U", "AKS-74U Filtered", "AKS-74U Spetsnaz",
+        "m1919a6 Trooper", "M249 SAW TROOPER", "XM 177", "M4A1", "M16A1", "M14", "M60", "RPK", "PATRIOT(Nwm czy jest na vs)", "OTS groza", "RPK-74"
+    ]
+
+    secondary_weapons = [
+        "Desert Eagle", "Snake's MAC-10", "Silent partner", "Python", "Sweeper Desert Eagle", "MAC-10", "MP5K", "M93r"
+    ]
+
+    primary_optics = [
+        "Holographic Sight", "Kobra Sight", "CQR Sight", "Reflex Sight"
+    ]
+
+    secondary_optics = [
+        "Kobra Sight", "Reflex Sight"
+    ]
+
+    primary_suppressors = [
+        "Military Suppressor", "Military Suppressor", "NATO Operator Suppressor", "Soviet Spetsnaz Suppressor"
+    ]
+
+    secondary_suppressors = [
+        "Standard Suppressor"
+    ]
+
+    primary_grips = [
+        "Laser Sight", "Green Laser Sight", "Folding Foregrip", "Straight Foregrip", "Short Grip"
+    ]
+
+    secondary_grips = [
+        "Laser Sight", "Green Laser Sight"
+    ]
+
+    # Losowanie
+    primary = random.choice(primary_weapons)
+    secondary = random.choice(secondary_weapons)
+
+    primary_optic = random.choice(primary_optics)
+    secondary_optic = random.choice(secondary_optics)
+
+    primary_suppressor = random.choice(primary_suppressors)
+    secondary_suppressor = random.choice(secondary_suppressors)
+
+    primary_grip = random.choice(primary_grips)
+    secondary_grip = random.choice(secondary_grips)
+
+    # Embed z nazwą użytkownika
+    embed = discord.Embed(
+        title=f"Dobry loadout {ctx.author.display_name}",
+        color=0xe67e22
+    )
+    embed.set_author(name=ctx.author.name, icon_url=ctx.author.display_avatar.url)
+
+    embed.add_field(name="🔹 Broń główna", value=f"**{primary}**", inline=False)
+    embed.add_field(name="• Celownik", value=primary_optic, inline=True)
+    embed.add_field(name="• Tłumik", value=primary_suppressor, inline=True)
+    embed.add_field(name="• Grip", value=primary_grip, inline=True)
+
+    embed.add_field(name="\u200B", value="\u200B", inline=False)
+
+    embed.add_field(name="🔸 Broń boczna", value=f"**{secondary}**", inline=False)
+    embed.add_field(name="• Celownik", value=secondary_optic, inline=True)
+    embed.add_field(name="• Tłumik", value=secondary_suppressor, inline=True)
+    embed.add_field(name="• Grip", value=secondary_grip, inline=True)
+
+    try:
+        await ctx.author.send(embed=embed)
+        await ctx.send("📩 Dobry loadout został wysłany na Twojego DM.")
+    except discord.Forbidden:
+        await ctx.send("❌ Nie mogłem wysłać wiadomości prywatnej – sprawdź ustawienia prywatności.")
+
+
+@dobryprivloadout.error
+async def dobryprivloadout_error(ctx, error):
+    if isinstance(error, commands.CommandOnCooldown):
+        await ctx.send(f"⏳ Poczekaj jeszcze {error.retry_after:.1f} sekund zanim użyjesz tej komendy ponownie.")
+
+
+
 
 
 
 FILE_NAME = "smiecie.txt"
 
 @bot.command()
-@commands.cooldown(rate=1, per=120, type=commands.BucketType.user)
+@commands.cooldown(rate=1, per=30, type=commands.BucketType.user)
 async def smiec(ctx, *, nazwa: str):
     """Dodaje wpis do pliku smiecie.txt jeśli go tam jeszcze nie ma."""
     if not os.path.exists(FILE_NAME):
@@ -1768,7 +1929,7 @@ async def ciekawostki(ctx):
             last_facts[user_id] = random_line  # Zapisz ostatnią dla danego użytkownika
 
             embed = discord.Embed(
-                title="Ciekawostka",
+                title="Ciekawostka z **Apocalypse Rising 2**",
                 description=random_line,
                 color=discord.Color.green()
             )
@@ -1790,7 +1951,7 @@ async def leaderboard(ctx):
         ("frank_84848", 324),
         ("FilipoPL", 765),
         ("ILikeTrains123321", 432),
-        ("23x99x11", 543),
+        ("23x99x11", 943),
         ("Majtczak", 876),
         ("wawacat_OhTheMisery", 654),
         ("AndrzejDudusPIS", 321),
@@ -1830,7 +1991,7 @@ async def leaderboard(ctx):
     await ctx.send(embed=embed)
 
 
-@bot.command(name="pojedynek", aliases=["mecz"])
+@bot.command(name="pojedynek", aliases=["mecz", "pm", "ps"])
 #@commands.has_permissions(administrator=True)
 async def pojedynek(ctx, member1: discord.Member, separator: str, member2: discord.Member, result: str):
     try:
@@ -1906,7 +2067,7 @@ async def pojedynki(ctx):
 
 
 
-@bot.command(name="wyniki")
+@bot.command(name="wynik")
 async def wyniki_uzytkownika(ctx, member: discord.Member):
     try:
         username = member.display_name
@@ -2007,10 +2168,13 @@ PRZEKLENSTWA = [
     "fiut", "fiucie", "pizdowaty", "dupek", "pierdolisz", "chujowy", "chujowa",
     "chujem", "pierdolić", "pieprz się", "gówniarz", "wypierdalać", "chujnia",
     "jebac cie", "wypierdalaj kurwo", "pizdo jebana", "pizdo", "kurwo",
-    "jebany chuju", "pierdol sie", "zjebie", "skurwysynie", "kurwidołek", "pizde", "cipa"
+    "jebany chuju", "pierdol sie", "zjebie", "skurwysynie", "kurwidołek", "pizde", "pizdo", "pierdol",
+    "kurwą", "https://media.discordapp.net/attachments/1138236492049817641/1238121264929964112/caption-3-2-1.gif?ex=68bae648&is=68b994c8&hm=47b396afa4ef93f9fde2541fb3750f7c9d5ce59fa711d8ff62058c42b814549b&=",
+    "pierd0l", "kurw",
+    
 ]
 # Lista kanałów do monitorowania
-MONITOROWANE_KANALY = [1041423745002254368, 123456789012345678, 1444025778055549111]  # <-- dodaj więcej ID tutaj
+MONITOROWANE_KANALY = [927491981670776865, 1041423745002254368, 123456789012345678, 1394808729337331843]  # <-- dodaj więcej ID tutaj
 
 # Licznik ostrzeżeń dla użytkowników
 ostrzezenia = defaultdict(int)
@@ -2047,14 +2211,454 @@ async def on_message(message):
 
 
 
+DATA_DIR = "data"
+SHOP_FILE = "shop.txt"
+INVENTORY_FILE = os.path.join(DATA_DIR, "inventory.txt")
+
+if not os.path.exists(DATA_DIR):
+    os.makedirs(DATA_DIR)
+
+# 📄 Utwórz przykładowy sklep, jeśli nie istnieje
+if not os.path.exists(SHOP_FILE):
+    with open(SHOP_FILE, "w") as f:
+        f.write("snajperka,5000\nzbroja,3000\napteczka,1000\n")
+
+# 🏦 Pobierz balans użytkownika
+def get_balance(user_id):
+    path = f"{DATA_DIR}/balance_{user_id}.txt"
+    if not os.path.exists(path):
+        return 0
+    with open(path, "r") as f:
+        return int(f.read())
+
+# 💰 Ustaw balans użytkownika
+def set_balance(user_id, amount):
+    with open(f"{DATA_DIR}/balance_{user_id}.txt", "w") as f:
+        f.write(str(amount))
+
+# 📅 Pobierz datę ostatniej wypłaty
+def get_last_withdraw(user_id):
+    path = f"{DATA_DIR}/last_withdraw_{user_id}.txt"
+    if not os.path.exists(path):
+        return None
+    with open(path, "r") as f:
+        return f.read().strip()
+
+# 📅 Ustaw dzisiejszą datę jako datę wypłaty
+def set_last_withdraw(user_id):
+    with open(f"{DATA_DIR}/last_withdraw_{user_id}.txt", "w") as f:
+        f.write(datetime.now().strftime("%Y-%m-%d"))
+
+# 📜 !shop — pokaż sklep
+EMOTES = {
+    "snajperka": "🎯",
+    "zbroja": "🛡️",
+    "apteczka": "🩹",
+    "granat odłamkowy": "💣",
+    "karabin szturmowy": "🔫",
+    "noktowizor": "🌒",
+    "kamizelka kuloodporna": "🥋",
+    "miotacz ognia": "🔥",
+    "pistolet": "🔍",
+    "hełm taktyczny": "⛑️",
+    "radar przenośny": "📡",
+    "miny przeciwpiechotne": "🧨",
+    "drone zwiadowczy": "🛸",
+    "tarcza energetyczna": "🛡️⚡",
+    "mikstura szybkości": "⚗️💨",
+    "kamuflaż optyczny": "🕵️‍♂️",
+    "ładunki wybuchowe C4": "💥",
+    "rękawice wspinaczkowe": "🧤",
+    "plecak taktyczny": "🎒",
+    "klucz elektroniczny": "🔐",
+}
+
+
+@bot.command()
+async def shop(ctx):
+    embed = discord.Embed(title="🛒 Sklep", color=discord.Color.green())
+    with open(SHOP_FILE, "r") as f:
+        for line in f:
+            item, price = line.strip().split(",")
+            emote = EMOTES.get(item.lower(), "")
+            embed.add_field(name=f"{item.title()} {emote}", value=f"{price} monet", inline=False)
+    await ctx.send(embed=embed)
+# 💵 !balance — pokaz saldo
+@bot.command()
+async def balance(ctx):
+    bal = get_balance(ctx.author.id)
+    await ctx.send(f"💰 Twój stan konta: `{bal}` monet.")
+
+# 📥 !wyplac — wypłata dzienna
+@bot.command()
+async def wyplac(ctx):
+    user_id = ctx.author.id
+    last = get_last_withdraw(user_id)
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    if last == today:
+        await ctx.send("⛔ Już dziś wypłaciłeś 10000 monet.")
+    else:
+        bal = get_balance(user_id) + 10000
+        set_balance(user_id, bal)
+        set_last_withdraw(user_id)
+        await ctx.send("✅ Wypłacono 10000 monet!")
+
+# 🛒 !buy [item]
+@bot.command()
+async def buy(ctx, *, args):
+    user_id = ctx.author.id
+    parts = args.lower().split()
+
+    if len(parts) == 0:
+        await ctx.send("❌ Podaj nazwę przedmiotu.")
+        return
+
+    item = " ".join(parts[:-1]) if parts[-1].isdigit() else " ".join(parts)
+    quantity = int(parts[-1]) if parts[-1].isdigit() else 1
+
+    if quantity < 1:
+        await ctx.send("❌ Ilość musi być większa niż 0.")
+        return
+
+    with open(SHOP_FILE, "r") as f:
+        shop_items = {line.split(",")[0]: int(line.split(",")[1]) for line in f}
+
+    if item not in shop_items:
+        await ctx.send("❌ Taki przedmiot nie istnieje w sklepie.")
+        return
+
+    cost = shop_items[item] * quantity
+    bal = get_balance(user_id)
+
+    if bal < cost:
+        await ctx.send(f"❌ Nie masz wystarczająco monet. Potrzebujesz `{cost}`, masz `{bal}`.")
+        return
+
+    set_balance(user_id, bal - cost)
+
+    # Dodaj przedmiot do inventory x ilość razy
+    for _ in range(quantity):
+        add_item_to_inventory(user_id, item)
+
+    await ctx.send(f"✅ Kupiłeś `{quantity}`x `{item}` za `{cost}` monet!")
+
+# 🎁 !give [@użytkownik] [kwota]
+@bot.command()
+async def give(ctx, member: discord.Member, amount: int):
+    giver_id = ctx.author.id
+    receiver_id = member.id
+
+    if amount <= 0:
+        await ctx.send("❌ Podaj poprawną kwotę.")
+        return
+
+    if giver_id == receiver_id:
+        await ctx.send("❌ Nie możesz przelać monet sam sobie.")
+        return
+
+    giver_bal = get_balance(giver_id)
+    if giver_bal < amount:
+        await ctx.send("❌ Nie masz tyle monet.")
+        return
+
+    # Przelej
+    set_balance(giver_id, giver_bal - amount)
+    set_balance(receiver_id, get_balance(receiver_id) + amount)
+    await ctx.send(f"✅ Przesłałeś {amount} monet do {member.mention}!")
+
+def read_inventory():
+    inventory = {}
+    if not os.path.exists(INVENTORY_FILE):
+        return inventory
+    with open(INVENTORY_FILE, "r") as f:
+        for line in f:
+            if line.strip():
+                user_id, items_str = line.strip().split(":", 1)
+                items = items_str.split(",") if items_str else []
+                inventory[int(user_id)] = items
+    return inventory
+
+def write_inventory(inventory):
+    with open(INVENTORY_FILE, "w") as f:
+        for user_id, items in inventory.items():
+            items_line = ",".join(items)
+            f.write(f"{user_id}:{items_line}\n")
+
+def get_inventory(user_id):
+    inventory = read_inventory()
+    return inventory.get(user_id, [])
+
+def add_item_to_inventory(user_id, item, amount=1):
+    inventory = read_inventory()
+
+    if user_id not in inventory:
+        inventory[user_id] = []
+
+    inventory[user_id].extend([item] * amount)
+
+    write_inventory(inventory)
+
+# Komenda !inventory
+@bot.command()
+async def inventory(ctx):
+    user_id = ctx.author.id
+    items = get_inventory(user_id)
+    if not items:
+        await ctx.send("🛒 Twoje inventory jest puste.")
+        return
+    counts = Counter(items)
+    lines = [f"{item.title()} x{count}" for item, count in counts.items()]
+    inventory_text = "\n".join(lines)
+    embed = discord.Embed(title=f"🎒 Inventory {ctx.author.name}", description=inventory_text, color=discord.Color.blue())
+    await ctx.send(embed=embed)
+
+
+
+@bot.command()
+async def bogacze(ctx):
+    balances = []
+    data_dir = "data"
+    if not os.path.exists(data_dir):
+        await ctx.send("Brak danych o graczach.")
+        return
+    
+    # Szukamy plików balance_userid.txt
+    for filename in os.listdir(data_dir):
+        if filename.startswith("balance_") and filename.endswith(".txt"):
+            user_id_str = filename[len("balance_"):-len(".txt")]
+            try:
+                user_id = int(user_id_str)
+                with open(os.path.join(data_dir, filename), "r") as f:
+                    bal = int(f.read().strip())
+                balances.append((user_id, bal))
+            except Exception:
+                continue
+    
+    if not balances:
+        await ctx.send("Brak danych o graczach.")
+        return
+    
+    # Sortujemy malejąco po saldzie
+    balances.sort(key=itemgetter(1), reverse=True)
+    
+    # Top 5
+    top = balances[:5]
+    
+    description_lines = []
+    for rank, (user_id, bal) in enumerate(top, start=1):
+        member = ctx.guild.get_member(user_id)
+        name = member.name if member else f"User ID: {user_id}"
+        description_lines.append(f"**{rank}.** {name} — `{bal}` monet")
+    
+    embed = discord.Embed(title="💰 Najbogatsi gracze", description="\n".join(description_lines), color=discord.Color.gold())
+    await ctx.send(embed=embed)
 
 
 
 
+@bot.command()
+async def drużyna(ctx, *players):
+    if len(players) < 2:
+        await ctx.send("❌ Podaj przynajmniej 2 graczy. Pamiętaj o spacji pomiędzy nazwami")
+        return
 
+    shuffled = list(players)
+    random.shuffle(shuffled)
+
+    mid = len(shuffled) // 2
+    team1 = shuffled[:mid]
+    team2 = shuffled[mid:]
+
+    embed = discord.Embed(
+        title="📣 Podział drużyn",
+        color=discord.Color.blue()
+    )
+    embed.add_field(name="🔵 Drużyna 1", value='\n'.join(f"• {p}" for p in team1), inline=False)
+    embed.add_field(name="🔴 Drużyna 2", value='\n'.join(f"• {p}" for p in team2), inline=False)
+    embed.set_footer(text="Losowy podział graczy", icon_url=ctx.guild.icon.url if ctx.guild.icon else discord.Embed.Empty)
+
+    await ctx.send(embed=embed)
+
+
+@bot.command()
+@commands.cooldown(rate=1, per=10, type=commands.BucketType.user)
+async def mąka(ctx):
+    obraz_link = 'https://media.discordapp.net/attachments/1118254144155828244/1396597067996074054/image.png?ex=687ea9e0&is=687d5860&hm=3ae13023e8998a6a1d411391fce9cd88a890fd9b7c406d1c2c0abf87d072b9c3&=&format=webp&quality=lossless'  # tutaj podaj swój link
+
+    embed = discord.Embed(title="zdjecie monki", color=0x0099ff)
+    embed.set_image(url=obraz_link)
+
+    await ctx.send(embed=embed)
+
+@mąka.error
+async def mąka_error(ctx, error):
+    if isinstance(error, commands.CommandOnCooldown):
+        await ctx.send(f"Poczekaj {error.retry_after:.1f} sekund zanim ponownie użyjesz tej komendy.")
+
+
+
+@bot.command()
+async def cowboy(ctx):
+    gif_url = "https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExa2tsdHAyZzN5NHl3cHFqYXRpOXMxMGpxNGtwczJyd3ZodjBoeThkcSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/5q704epjfPBMzrqs1j/giphy.gif"  # <- Twój link do GIF-a
+
+    embed = discord.Embed(
+        title="🤠 Kowboj!",
+        description="",
+        color=discord.Color.gold()
+    )
+    embed.set_image(url=gif_url)
+
+    await ctx.send(embed=embed)
+
+@bot.command()
+async def ping(ctx, member: discord.Member = None):
+    member = member or ctx.author
+    latency_ms = round(bot.latency * 1000)
+    response = f"Pong`{latency_ms}ms`"
+    await ctx.send(response)
+
+@bot.command(aliases=["joke"])
+async def zart(ctx):
+    import requests
+    try:
+        data = requests.get("https://official-joke-api.appspot.com/random_joke").json()
+        await ctx.send(f"{data['setup']}\n{data['punchline']}")
+    except:
+        await ctx.send("Nie udało się pobrać żartu — spróbuj ponownie za chwilę.")
+
+
+
+
+@bot.command()
+@commands.cooldown(rate=1, per=60.0, type=commands.BucketType.user)  # 1 użycie co 60 sekund na użytkownika
+async def Piotrek(ctx):
+    try:
+        user = await bot.fetch_user(668591970637185024)  # <- tutaj wstaw ID Piotrka
+        link = "https://discord.com/channels/SERVER_ID/CHANNEL_ID"  # <- tutaj wstaw link do kanału lub wiadomości
+        message = (
+            "wbijaj!\n\n"
+            f"Wiadomość wysłana przez użytkownika: **{ctx.author.name}**\n\n"
+            f"Link: {link}"
+        )
+        await user.send(message)
+        await ctx.send("Wiadomość do Piotrka została wysłana.")
+    except Exception as e:
+        await ctx.send(f"Nie udało się wysłać wiadomości do Piotrka. Błąd: {e}")
+
+# Obsługa błędów cooldownu
+@Piotrek.error
+async def Piotrek_error(ctx, error):
+    if isinstance(error, commands.CommandOnCooldown):
+        await ctx.send(f"Ta komenda jest na cooldownie. Spróbuj ponownie za {int(error.retry_after)} sekund.")
+    else:
+        raise error
+
+
+@bot.command()
+async def pisz(ctx, channel_id: int, *, tresc: str):
+    if ctx.author.id == 856522677896609803:
+        await ctx.message.delete()  # usuń wiadomość użytkownika
+        channel = bot.get_channel(channel_id)  # pobierz kanał po ID
+        if channel is None:
+            await ctx.send("Nie znaleziono kanału o podanym ID.")
+            return
+        await channel.send(tresc)  # wyślij treść na wskazany kanał
+    else:
+        await ctx.send("Nie masz uprawnień do używania tej komendy.")
+
+
+
+survival_points = {}
+
+@bot.command()
+async def survive(ctx):
+    user_id = ctx.author.id
+    result = random.choice(["win", "lose"])
+
+    # Jeśli użytkownik nie ma jeszcze punktów, daj 0 na start
+    if user_id not in survival_points:
+        survival_points[user_id] = 0
+
+    if result == "win":
+        points_gained = random.randint(5, 15)
+        survival_points[user_id] += points_gained
+        await ctx.send(
+            f"🛡️ {ctx.author.name}, udało Ci się przeżyć atak zombie! "
+            f"Zdobywasz {points_gained} punktów przeżycia. "
+            f"Masz teraz {survival_points[user_id]} punktów."
+        )
+    else:
+        points_lost = random.randint(3, 10)
+        survival_points[user_id] = max(0, survival_points[user_id] - points_lost)
+        await ctx.send(
+            f"☠️ {ctx.author.name}, niestety zostałeś pokonany przez hordę zombie. "
+            f"Tracisz {points_lost} punktów przeżycia. "
+            f"Masz teraz {survival_points[user_id]} punktów."
+        )
+
+
+
+@bot.command()
+@commands.cooldown(rate=1, per=300.0, type=commands.BucketType.user)  # np. 1 raz na 5 minut
+async def team(ctx):
+    user_ids = [
+        747177807934783569,  # Grubek
+        476739957948416022,  # Kokonut
+        775679101481779230,  # Franek
+        1290639426770173994, # Lukasz
+        668591970637185024   # Piotrek
+    ]
+
+    link = "https://discord.com/channels/927491981670776862/927491981670776866"
+    message_template = (
+        "Wbijaj!\n"
+        f"{link}\n\n"
+        f"Wiadomość wysłana przez użytkownika: **{ctx.author.name}**"
+    )
+
+    sent_count = 0
+    failed_count = 0
+
+    for uid in user_ids:
+        try:
+            user = await bot.fetch_user(uid)
+            await user.send(message_template)
+            sent_count += 1
+        except Exception as e:
+            failed_count += 1
+            await ctx.send(f"❌ Nie udało się wysłać wiadomości do ID {uid}. Błąd: {e}")
+
+    await ctx.send(f"✅ Wysłano wiadomość do {sent_count} osób. ❌ Niepowodzenia: {failed_count}")
+
+@team.error
+async def team_error(ctx, error):
+    if isinstance(error, commands.CommandOnCooldown):
+        await ctx.send(f"⏳ Ta komenda jest na cooldownie. Spróbuj ponownie za {int(error.retry_after)} sekund.")
+    else:
+        raise error
+
+
+# Publiczny model Stable Diffusion 1.5 (Hugging Face)
+MODEL_URL = "https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5"
+
+@bot.command()
+async def zdj(ctx, *, prompt: str):
+    await ctx.send(f"🎨 Generuję obraz dla: `{prompt}`... to może potrwać ⏳")
+
+    # Wysłanie zapytania do publicznego API (bez klucza)
+    response = requests.post(
+        MODEL_URL,
+        json={"inputs": prompt},
+    )
+
+    if response.status_code == 200:
+        image_bytes = response.content
+        file = discord.File(io.BytesIO(image_bytes), filename="image.png")
+        await ctx.send(file=file)
+    else:
+        await ctx.send("⚠️ Coś poszło nie tak z generowaniem obrazu (API mogło być przeciążone).")
 
 bot.run(os.getenv("TOKEN"))
-
-
 
 
