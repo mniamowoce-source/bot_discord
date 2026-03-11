@@ -2057,5 +2057,3 @@ bot.run(os.getenv("TOKEN"))
 
 
 
-
-# token luki : MTMxNjc5OTE3MjkyNTcyMjY1NQ.GPAkTB.hFuD8o_O9JqgW0ArYoKFFWQoYWBAhxZU44c_hU
