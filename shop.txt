@@ -1,0 +1,3 @@
+snajperka,5000
+zbroja,3000
+apteczka,1000

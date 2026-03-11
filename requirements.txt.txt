@@ -1,0 +1,8 @@
+discord.py[voice]
+yt-dlp
+aiohttp
+requests
+beautifulsoup4
+ddgs
+openai
+PyNaCl
