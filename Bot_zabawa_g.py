@@ -55,17 +55,17 @@ async def play(ctx, *, search: str):
     elif voice_client.channel != channel:
         await voice_client.move_to(channel)
 
-ydl_opts = {
-    'format': 'bestaudio/best',
-    'noplaylist': True,
-    'quiet': True,
-    'default_search': 'ytsearch',
-    'extract_flat': False,
-    'nocheckcertificate': True,
-    'source_address': '0.0.0.0',
-    'geo_bypass': True,
-    'geo_bypass_country': 'US',
-}
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'noplaylist': True,
+        'quiet': True,
+        'default_search': 'ytsearch',
+        'extract_flat': False,
+        'nocheckcertificate': True,
+        'source_address': '0.0.0.0',
+        'geo_bypass': True,
+        'geo_bypass_country': 'US',
+    }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(search, download=False)
@@ -2971,6 +2971,7 @@ async def on_message(message):
 
 
 bot.run(os.getenv("TOKEN"))
+
 
 
 
