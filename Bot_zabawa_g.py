@@ -1004,14 +1004,16 @@ async def maxxx(ctx):
 
         source = discord.FFmpegPCMAudio(
             stream_url,
+            executable="ffmpeg",
             before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
             options="-vn"
         )
+
         voice.play(source, after=lambda e: print("✅ Radio RMF MAXXX zakończone."))
         await ctx.send("🎧 Odtwarzam **RMF MAXXX**!")
+
     except Exception as e:
         await ctx.send(f"❌ Błąd odtwarzania: {e}")
-
 
 
 
@@ -2952,6 +2954,7 @@ async def on_message(message):
 
 
 bot.run(os.getenv("TOKEN"))
+
 
 
 
