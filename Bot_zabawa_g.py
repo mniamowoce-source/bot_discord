@@ -1605,16 +1605,27 @@ async def radiozet(ctx):
     voice_client = ctx.guild.voice_client
 
     try:
-        if voice_client is not None:
-            if voice_client.channel != voice_channel:
-                await voice_client.move_to(voice_channel)
-        else:
+        if voice_client is None:
             voice_client = await voice_channel.connect()
+        elif voice_client.channel != voice_channel:
+            await voice_client.move_to(voice_channel)
 
         radio_url = "https://n-4-6.dcs.redcdn.pl/sc/o2/Eurozet/live/audio.livx"
 
-        voice_client.stop()
-        source = discord.FFmpegPCMAudio(radio_url)
+        if voice_client.is_playing():
+            voice_client.stop()
+
+        ffmpeg_options = {
+            "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
+            "options": "-vn"
+        }
+
+        source = discord.FFmpegPCMAudio(
+            radio_url,
+            executable="ffmpeg",
+            **ffmpeg_options
+        )
+
         voice_client.play(source)
 
         embed = discord.Embed(
@@ -1624,13 +1635,15 @@ async def radiozet(ctx):
         )
 
         embed.set_footer(text="🔫 Agenci zostali wysłani do wrogów")
-        embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url if ctx.author.avatar else None)
+        embed.set_author(
+            name=ctx.author.display_name,
+            icon_url=ctx.author.avatar.url if ctx.author.avatar else None
+        )
 
         await ctx.send(embed=embed)
 
     except Exception as e:
         await ctx.send(f"❌ Wystąpił błąd podczas odtwarzania radia: {e}")
-
  
 
 @bot.command()
@@ -2954,6 +2967,7 @@ async def on_message(message):
 
 
 bot.run(os.getenv("TOKEN"))
+
 
 
 
