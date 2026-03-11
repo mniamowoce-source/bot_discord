@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["ffmpeg"]
+aptPkgs = ["ffmpeg"]
 
 [start]
 cmd = "python Bot_zabawa_g.py"
