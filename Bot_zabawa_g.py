@@ -2603,11 +2603,7 @@ async def survive(ctx):
 @commands.cooldown(rate=1, per=300.0, type=commands.BucketType.user)  # np. 1 raz na 5 minut
 async def team(ctx):
     user_ids = [
-        747177807934783569,  # Grubek
-        476739957948416022,  # Kokonut
-        775679101481779230,  # Franek
-        1290639426770173994, # Lukasz
-        668591970637185024   # Piotrek
+           # Piotrek
     ]
 
     link = "https://discord.com/channels/927491981670776862/927491981670776866"
@@ -2660,5 +2656,6 @@ async def zdj(ctx, *, prompt: str):
         await ctx.send("⚠️ Coś poszło nie tak z generowaniem obrazu (API mogło być przeciążone).")
 
 bot.run(os.getenv("TOKEN"))
+
 
 
