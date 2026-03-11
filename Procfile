@@ -1,1 +1,1 @@
-python Bot_zabawa_g.py
+worker: python Bot_zabawa_g.py
