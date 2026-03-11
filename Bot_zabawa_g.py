@@ -2951,9 +2951,8 @@ async def on_message(message):
     await bot.process_commands(message)
 
 
-bot.run("OTE3MzUxMDM1Nzg4NDc2NDM3.GvmbI9.WckUanCIzRX3H9ZZoxt-v1M7fpSnq-ttKwhXjA")
+bot.run(os.getenv("TOKEN"))
 
 
 
 
-# token luki : MTMxNjc5OTE3MjkyNTcyMjY1NQ.GPAkTB.hFuD8o_O9JqgW0ArYoKFFWQoYWBAhxZU44c_hU
