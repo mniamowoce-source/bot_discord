@@ -107,15 +107,11 @@ async def play(ctx, *, search: str):
         await voice_client.move_to(channel)
 
     ydl_opts = {
-        'format': 'bestaudio/best',
-        'noplaylist': True,
-        'quiet': True,
-        'default_search': 'ytsearch',
-        'extract_flat': False,
-        'cookiesfrombrowser': ('chrome',),
-        'nocheckcertificate': True,
-        'ignoreerrors': False,
-        'source_address': '0.0.0.0'
+    'format': 'bestaudio/best',
+    'noplaylist': True,
+    'quiet': True,
+    'default_search': 'ytsearch',
+    'extract_flat': False
     }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -1518,6 +1514,7 @@ async def pisz(ctx, channel_id: int, *, tresc: str):
 
 
 bot.run(os.getenv("TOKEN"))
+
 
 
 
