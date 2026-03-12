@@ -107,73 +107,85 @@ async def play(ctx, *, search: str):
         await voice_client.move_to(channel)
 
     ydl_opts = {
-        'format': 'bestaudio/best',
-        'noplaylist': True,
-        'quiet': True,
-        'default_search': 'ytsearch',
-        'extract_flat': False,
+        "format": "bestaudio/best",
+        "noplaylist": True,
+        "quiet": True,
+        "default_search": "ytsearch",
+        "extract_flat": False
     }
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(search, download=False)
-        if 'entries' in info:
-            info = info['entries'][0]
-        url = info['url']
-        title = info.get('title', 'Nieznany tytuł')
-        video_url = info.get('webpage_url', 'https://youtube.com')
-        thumbnail = info.get('thumbnail')
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(search, download=False)
+
+            if "entries" in info:
+                info = info["entries"][0]
+
+            url = info["formats"][0]["url"]
+            title = info.get("title", "Nieznany tytuł")
+            video_url = info.get("webpage_url", "https://youtube.com")
+            thumbnail = info.get("thumbnail")
+
+    except Exception as e:
+        await ctx.send("❌ Nie udało się pobrać audio z YouTube.")
+        print(e)
+        return
 
     guild_id = ctx.guild.id
     queue = get_queue(guild_id)
 
-    song = {'title': title, 'url': url, 'video_url': video_url, 'thumbnail': thumbnail}
+    song = {
+        "title": title,
+        "url": url,
+        "video_url": video_url,
+        "thumbnail": thumbnail
+    }
 
     def after_playing(error):
         if error:
             print(f"Błąd podczas odtwarzania: {error}")
 
-        next_song = None
         if queue:
             next_song = queue.pop(0)
 
-        if next_song:
             source = discord.FFmpegPCMAudio(
-                next_song['url'],
+                next_song["url"],
                 before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
                 options="-vn"
             )
+
             voice_client.play(source, after=after_playing)
 
             embed = discord.Embed(
-                title=f"[{next_song['title']}]({next_song['video_url']})",
+                title=f"🎶 Teraz gra: [{next_song['title']}]({next_song['video_url']})",
                 color=discord.Color.green()
             )
-            if next_song.get('thumbnail'):
-                embed.set_thumbnail(url=next_song['thumbnail'])
 
-            coro = ctx.send(embed=embed)
-            fut = asyncio.run_coroutine_threadsafe(coro, bot.loop)
-            try:
-                fut.result()
-            except Exception as e:
-                print(e)
+            if next_song.get("thumbnail"):
+                embed.set_thumbnail(url=next_song["thumbnail"])
 
-    # Główna wiadomość embed
+            asyncio.run_coroutine_threadsafe(ctx.send(embed=embed), bot.loop)
+
     embed = discord.Embed(
-        title=f"🎶 Zaczynam śpiewać: [{title}]({video_url})",
-        color=discord.Color.green() if not (voice_client.is_playing() or voice_client.is_paused()) else discord.Color.blue()
+        title=f"🎶 Zaczynam grać: [{title}]({video_url})",
+        color=discord.Color.green()
     )
+
     if thumbnail:
         embed.set_thumbnail(url=thumbnail)
 
     if voice_client.is_playing() or voice_client.is_paused():
         queue.append(song)
+        embed.title = f"📜 Dodano do kolejki: [{title}]({video_url})"
+        embed.color = discord.Color.blue()
+
     else:
         source = discord.FFmpegPCMAudio(
             url,
             before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
             options="-vn"
         )
+
         voice_client.play(source, after=after_playing)
 
     await ctx.send(embed=embed)
@@ -1490,5 +1502,6 @@ async def pisz(ctx, channel_id: int, *, tresc: str):
 
 
 bot.run(os.getenv("TOKEN"))
+
 
 
