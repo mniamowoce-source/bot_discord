@@ -1437,7 +1437,7 @@ PRZEKLENSTWA = [
     
 ]
 # Lista kanałów do monitorowania
-MONITOROWANE_KANALY = [927491981670776865, 1041423745002254368, 123456789012345678, 1394808729337331843]  # <-- dodaj więcej ID tutaj
+MONITOROWANE_KANALY = [927491981670776865, 1041423745002254368, 123456789012345678, 1394808729337331843, 1444025778055549111]  # <-- dodaj więcej ID tutaj
 
 # Licznik ostrzeżeń dla użytkowników
 ostrzezenia = defaultdict(int)
@@ -1514,5 +1514,6 @@ async def pisz(ctx, channel_id: int, *, tresc: str):
 
 
 bot.run(os.getenv("TOKEN"))
+
 
 
