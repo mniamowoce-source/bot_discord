@@ -112,6 +112,10 @@ async def play(ctx, *, search: str):
         'quiet': True,
         'default_search': 'ytsearch',
         'extract_flat': False,
+        'cookiesfrombrowser': ('chrome',),
+        'nocheckcertificate': True,
+        'ignoreerrors': False,
+        'source_address': '0.0.0.0'
     }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -1514,6 +1518,7 @@ async def pisz(ctx, channel_id: int, *, tresc: str):
 
 
 bot.run(os.getenv("TOKEN"))
+
 
 
 
