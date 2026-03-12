@@ -122,7 +122,7 @@ async def play(ctx, *, search: str):
         info = ydl.extract_info(search, download=False)
         if 'entries' in info:
             info = info['entries'][0]
-        url = info['url']
+        url = info['formats'][0]['url']
         title = info.get('title', 'Nieznany tytuł')
         video_url = info.get('webpage_url', 'https://youtube.com')
         thumbnail = info.get('thumbnail')
@@ -1518,6 +1518,7 @@ async def pisz(ctx, channel_id: int, *, tresc: str):
 
 
 bot.run(os.getenv("TOKEN"))
+
 
 
 
