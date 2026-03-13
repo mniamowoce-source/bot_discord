@@ -212,6 +212,33 @@ async def stop(ctx):
     else:
         await ctx.send("Bot nie jest na żadnym kanale głosowym.")
 
+@bot.command()
+async def rmffm(ctx):
+    """Odtwarza radio RMF FM na kanale głosowym"""
+
+    if not ctx.author.voice:
+        await ctx.send("❌ Musisz być na kanale głosowym.")
+        return
+
+    channel = ctx.author.voice.channel
+
+    if ctx.voice_client is None:
+        vc = await channel.connect()
+    else:
+        vc = ctx.voice_client
+        await vc.move_to(channel)
+
+    if vc.is_playing():
+        vc.stop()
+
+    source = discord.FFmpegPCMAudio(RMF_FM_STREAM_URL)
+    vc.play(source)
+
+    await ctx.send("📻 **Odtwarzam RMF FM**")
+
+
+
+
 
 @bot.command()
 async def clear(ctx, amount: int = 10):
