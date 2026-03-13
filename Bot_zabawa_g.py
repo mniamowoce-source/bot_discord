@@ -214,14 +214,14 @@ async def stop(ctx):
 
 
 @bot.command()
-@commands.has_permissions(manage_messages=True)
 async def clear(ctx, amount: int = 10):
     """Usuwa określoną liczbę wiadomości z czatu (domyślnie 10)"""
+    
     if amount < 1:
         await ctx.send("❌ **Podaj liczbę większą od 0!**")
         return
 
-    deleted = await ctx.channel.purge(limit=amount + 1)  # +1, żeby usunąć też komendę
+    deleted = await ctx.channel.purge(limit=amount + 1)  # +1 żeby usunąć też komendę
     await ctx.send(f"✅ **Usunięto {len(deleted) - 1} wiadomości.**", delete_after=5)
 
 
