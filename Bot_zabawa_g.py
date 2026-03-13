@@ -216,7 +216,11 @@ async def stop(ctx):
 @bot.command()
 async def clear(ctx, amount: int = 10):
     """Usuwa określoną liczbę wiadomości z czatu (domyślnie 10)"""
-    
+
+    if ctx.author.id != OWNER_ID:
+        await ctx.send("❌ Tylko właściciel bota może używać tej komendy.")
+        return
+
     if amount < 1:
         await ctx.send("❌ **Podaj liczbę większą od 0!**")
         return
