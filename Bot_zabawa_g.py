@@ -205,12 +205,24 @@ async def queue(ctx):
 @bot.command(aliases=["wyjdz"])
 async def stop(ctx):
     voice_client = ctx.voice_client
-    if voice_client:
-        queues[ctx.guild.id] = []
-        await voice_client.disconnect()
-        await ctx.send("⏹ Zatrzymałem odtwarzanie i wyczyściłem kolejkę.")
-    else:
+
+    if not voice_client:
         await ctx.send("Bot nie jest na żadnym kanale głosowym.")
+        return
+
+    # zatrzymanie aktualnego audio (YouTube lub radio)
+    if voice_client.is_playing() or voice_client.is_paused():
+        voice_client.stop()
+
+    # czyszczenie kolejki muzyki
+    queues[ctx.guild.id] = []
+
+    # opuszczenie kanału
+    await voice_client.disconnect()
+
+    await ctx.send("⏹ Zatrzymałem odtwarzanie (YouTube / radio) i wyczyściłem kolejkę.")
+
+
 
 @bot.command()
 async def rmffm(ctx):
