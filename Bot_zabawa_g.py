@@ -89,13 +89,6 @@ SECONDARY_GRIPS = [
 ]
 
 
-import asyncio
-import discord
-import yt_dlp
-from discord.ext import commands
-
-# globalna kolejka
-queues = {}
 
 FFMPEG_OPTIONS = {
     "before_options": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
