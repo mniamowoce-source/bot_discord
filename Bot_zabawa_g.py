@@ -1520,7 +1520,7 @@ async def drużyna(ctx, *players):
 
 @bot.command()
 async def pisz(ctx, channel_id: int, *, tresc: str):
-    if ctx.author.id == 917351035788476437:
+    if ctx.author.id == 1058379285515206747:
         await ctx.message.delete()  # usuń wiadomość użytkownika
         channel = bot.get_channel(channel_id)  # pobierz kanał po ID
         if channel is None:
