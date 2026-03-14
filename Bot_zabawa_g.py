@@ -99,7 +99,68 @@ FFMPEG_OPTIONS = {
 def get_queue(guild_id):
     return queues.setdefault(guild_id, [])
 
-@bot.command(aliases=['graj'])
+
+def get_ydl_opts():
+    return {
+        "format": "bestaudio/best",
+        "noplaylist": True,
+        "quiet": True,
+        "default_search": "ytsearch",
+        "extract_flat": False,
+        "nocheckcertificate": True,
+        "ignoreerrors": False,
+        "source_address": "0.0.0.0",
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["android"]
+            }
+        }
+    }
+
+
+def extract_song_info(search: str):
+    with yt_dlp.YoutubeDL(get_ydl_opts()) as ydl:
+        info = ydl.extract_info(search, download=False)
+
+        if info is None:
+            raise Exception("Nie udało się pobrać informacji o utworze.")
+
+        if "entries" in info:
+            entries = [e for e in info["entries"] if e]
+            if not entries:
+                raise Exception("Nie znaleziono żadnego wyniku.")
+            info = entries[0]
+
+        stream_url = info.get("url")
+        title = info.get("title", "Nieznany tytuł")
+        video_url = info.get("webpage_url") or info.get("original_url") or search
+        thumbnail = info.get("thumbnail")
+
+        if not stream_url:
+            raise Exception("Nie udało się pobrać linku audio.")
+
+        return {
+            "title": title,
+            "video_url": video_url,
+            "thumbnail": thumbnail,
+            "stream_url": stream_url,
+            "query": video_url
+        }
+
+
+def refresh_stream_url(song: dict):
+    query = song.get("video_url") or song.get("query") or song.get("title")
+    fresh = extract_song_info(query)
+
+    song["stream_url"] = fresh["stream_url"]
+    song["title"] = fresh["title"]
+    song["video_url"] = fresh["video_url"]
+    song["thumbnail"] = fresh["thumbnail"]
+
+    return song
+
+
+@bot.command(aliases=["graj"])
 async def play(ctx, *, search: str):
     if not ctx.author.voice:
         await ctx.send("❌ Musisz być na kanale głosowym!")
@@ -108,117 +169,128 @@ async def play(ctx, *, search: str):
     voice_client = ctx.voice_client
     channel = ctx.author.voice.channel
 
-    if voice_client is None:
-        voice_client = await channel.connect()
-    elif voice_client.channel != channel:
-        await voice_client.move_to(channel)
+    try:
+        if voice_client is None:
+            voice_client = await channel.connect()
+        elif voice_client.channel != channel:
+            await voice_client.move_to(channel)
+    except Exception as e:
+        await ctx.send(f"❌ Nie udało się dołączyć do kanału głosowego: `{e}`")
+        return
 
-    ydl_opts = {
-        'format': 'bestaudio/best',
-        'noplaylist': True,
-        'quiet': True,
-        'default_search': 'ytsearch',
-        'extract_flat': False,
-    }
-
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(search, download=False)
-        if 'entries' in info:
-            info = info['entries'][0]
-        url = info['url']
-        title = info.get('title', 'Nieznany tytuł')
-        video_url = info.get('webpage_url', 'https://youtube.com')
-        thumbnail = info.get('thumbnail')
+    try:
+        song = extract_song_info(search)
+    except Exception as e:
+        await ctx.send(
+            "❌ Nie udało się pobrać utworu z YouTube.\n"
+            f"Szczegóły: `{e}`"
+        )
+        return
 
     guild_id = ctx.guild.id
     queue = get_queue(guild_id)
-
-    song = {'title': title, 'url': url, 'video_url': video_url, 'thumbnail': thumbnail}
 
     def after_playing(error):
         if error:
             print(f"Błąd podczas odtwarzania: {error}")
 
-        next_song = None
-        if queue:
-            next_song = queue.pop(0)
+        next_song = queue.pop(0) if queue else None
 
         if next_song:
-            source = discord.FFmpegPCMAudio(
-                next_song['url'],
-                before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
-                options="-vn"
-            )
-            voice_client.play(source, after=after_playing)
-
-            embed = discord.Embed(
-                title=f"[{next_song['title']}]({next_song['video_url']})",
-                color=discord.Color.green()
-            )
-            if next_song.get('thumbnail'):
-                embed.set_thumbnail(url=next_song['thumbnail'])
-
-            coro = ctx.send(embed=embed)
-            fut = asyncio.run_coroutine_threadsafe(coro, bot.loop)
             try:
+                next_song = refresh_stream_url(next_song)
+
+                source = discord.FFmpegPCMAudio(
+                    next_song["stream_url"],
+                    before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
+                    options="-vn"
+                )
+                voice_client.play(source, after=after_playing)
+
+                embed = discord.Embed(
+                    title=f"🎶 Teraz gram: [{next_song['title']}]({next_song['video_url']})",
+                    color=discord.Color.green()
+                )
+                if next_song.get("thumbnail"):
+                    embed.set_thumbnail(url=next_song["thumbnail"])
+
+                fut = asyncio.run_coroutine_threadsafe(ctx.send(embed=embed), bot.loop)
                 fut.result()
             except Exception as e:
-                print(e)
+                print(f"Błąd kolejnego utworu: {e}")
 
-    # Główna wiadomość embed
     embed = discord.Embed(
-        title=f"🎶 Zaczynam śpiewać: [{title}]({video_url})",
+        title=f"🎶 Zaczynam śpiewać: [{song['title']}]({song['video_url']})",
         color=discord.Color.green() if not (voice_client.is_playing() or voice_client.is_paused()) else discord.Color.blue()
     )
-    if thumbnail:
-        embed.set_thumbnail(url=thumbnail)
+    if song.get("thumbnail"):
+        embed.set_thumbnail(url=song["thumbnail"])
 
     if voice_client.is_playing() or voice_client.is_paused():
         queue.append(song)
     else:
-        source = discord.FFmpegPCMAudio(
-            url,
-            before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
-            options="-vn"
-        )
-        voice_client.play(source, after=after_playing)
+        try:
+            song = refresh_stream_url(song)
+            source = discord.FFmpegPCMAudio(
+                song["stream_url"],
+                before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
+                options="-vn"
+            )
+            voice_client.play(source, after=after_playing)
+        except Exception as e:
+            await ctx.send(f"❌ Nie udało się rozpocząć odtwarzania: `{e}`")
+            return
 
     await ctx.send(embed=embed)
+
 
 @bot.command()
 async def skip(ctx):
     voice_client = ctx.voice_client
-    if voice_client and voice_client.is_playing():
+    if voice_client and (voice_client.is_playing() or voice_client.is_paused()):
         voice_client.stop()
         await ctx.send("⏭ Pominąłem utwór.")
     else:
         await ctx.send("Nie ma nic do pominięcia.")
 
+
 @bot.command()
 async def queue(ctx):
     guild_id = ctx.guild.id
-    queue = get_queue(guild_id)
-    if not queue:
+    songs = get_queue(guild_id)
+
+    if not songs:
         await ctx.send("Kolejka jest pusta.")
         return
 
     embed = discord.Embed(title="Kolejka utworów", color=discord.Color.blue())
     description = ""
-    for i, song in enumerate(queue, start=1):
-        description += f"{i}. {song['title']}\n"
+
+    for i, song in enumerate(songs, start=1):
+        title = song.get("title", "Nieznany tytuł")
+        video_url = song.get("video_url", "")
+        if video_url:
+            description += f"{i}. [{title}]({video_url})\n"
+        else:
+            description += f"{i}. {title}\n"
+
     embed.description = description
     await ctx.send(embed=embed)
+
 
 @bot.command(aliases=["wyjdz"])
 async def stop(ctx):
     voice_client = ctx.voice_client
+
     if voice_client:
+        if voice_client.is_playing() or voice_client.is_paused():
+            voice_client.stop()
+
         queues[ctx.guild.id] = []
         await voice_client.disconnect()
         await ctx.send("⏹ Zatrzymałem odtwarzanie i wyczyściłem kolejkę.")
     else:
         await ctx.send("Bot nie jest na żadnym kanale głosowym.")
-
 @bot.command()
 async def rmffm(ctx):
     """Odtwarza radio RMF FM na kanale głosowym"""
