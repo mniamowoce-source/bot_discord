@@ -96,7 +96,7 @@ FFMPEG_OPTIONS = {
 }
 
 
-ef get_queue(guild_id):
+def get_queue(guild_id):
     return queues.setdefault(guild_id, [])
 
 @bot.command(aliases=['graj'])
