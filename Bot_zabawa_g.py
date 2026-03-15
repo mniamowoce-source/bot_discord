@@ -1582,7 +1582,6 @@ async def drużyna(ctx, *players):
 
 
 
-
 @bot.command()
 async def pisz(ctx, channel_id: int, *, tresc: str):
     if ctx.author.id == 1058379285515206747:
