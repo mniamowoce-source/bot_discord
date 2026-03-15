@@ -92,6 +92,7 @@ SECONDARY_GRIPS = [
 def get_queue(guild_id):
     return queues.setdefault(guild_id, [])
 
+
 @bot.command(aliases=['graj'])
 async def play(ctx, *, search: str):
     if not ctx.author.voice:
@@ -211,7 +212,6 @@ async def stop(ctx):
         await ctx.send("⏹ Zatrzymałem odtwarzanie i wyczyściłem kolejkę.")
     else:
         await ctx.send("Bot nie jest na żadnym kanale głosowym.")
-
 
 @bot.command()
 @commands.has_permissions(manage_messages=True)
