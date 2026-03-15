@@ -1178,7 +1178,7 @@ async def grips(ctx):
 ## LOADOUTY
 ## LOADOUTY
 
-VIP_ID = 817155862966566912  # <<< wpisz tu ID osoby VIP
+VIP_ID =   # <<< wpisz tu ID osoby VIP
 
 
 @bot.command(name="loadout", aliases=["zestaw", "ls"])
