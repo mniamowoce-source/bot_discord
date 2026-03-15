@@ -1468,7 +1468,7 @@ async def drużyna(ctx, *players):
     )
     embed.add_field(name="🔵 Drużyna 1", value='\n'.join(f"• {p}" for p in team1), inline=False)
     embed.add_field(name="🔴 Drużyna 2", value='\n'.join(f"• {p}" for p in team2), inline=False)
-    embed.set_footer(text="Losowy podział graczy", icon_url=ctx.guild.icon.url if ctx.guild.icon else discord.Embed.Empty)
+    embed.set_footer(text="Losowy podział graczy", icon_url=ctx.guild.icon.url if ctx.guild.icon else None
 
     await ctx.send(embed=embed)
 
