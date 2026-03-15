@@ -1448,7 +1448,6 @@ async def on_message(message):
 
 
 
-
 @bot.command()
 async def drużyna(ctx, *players):
     if len(players) < 2:
@@ -1466,13 +1465,16 @@ async def drużyna(ctx, *players):
         title="📣 Podział drużyn",
         color=discord.Color.blue()
     )
+
     embed.add_field(name="🔵 Drużyna 1", value='\n'.join(f"• {p}" for p in team1), inline=False)
     embed.add_field(name="🔴 Drużyna 2", value='\n'.join(f"• {p}" for p in team2), inline=False)
-    embed.set_footer(text="Losowy podział graczy", icon_url=ctx.guild.icon.url if ctx.guild.icon else None
+
+    if ctx.guild.icon:
+        embed.set_footer(text="Losowy podział graczy", icon_url=ctx.guild.icon.url)
+    else:
+        embed.set_footer(text="Losowy podział graczy")
 
     await ctx.send(embed=embed)
-
-
 
 
 @bot.command()
