@@ -1450,7 +1450,7 @@ async def on_message(message):
 
 
 @bot.command()
-async def drużyna(ctx, *players):
+async def druzyna(ctx, *players):
     if len(players) < 2:
         await ctx.send("❌ Podaj przynajmniej 2 graczy. Pamiętaj o spacji pomiędzy nazwami")
         return
@@ -1466,12 +1466,29 @@ async def drużyna(ctx, *players):
         title="📣 Podział drużyn",
         color=discord.Color.blue()
     )
-    embed.add_field(name="🔵 Drużyna 1", value='\n'.join(f"• {p}" for p in team1), inline=False)
-    embed.add_field(name="🔴 Drużyna 2", value='\n'.join(f"• {p}" for p in team2), inline=False)
-    embed.set_footer(text="Losowy podział graczy", icon_url=ctx.guild.icon.url if ctx.guild.icon else discord.Embed.Empty)
+
+    embed.add_field(
+        name="🔵 Drużyna 1",
+        value='\n'.join(f"• {p}" for p in team1),
+        inline=False
+    )
+
+    embed.add_field(
+        name="🔴 Drużyna 2",
+        value='\n'.join(f"• {p}" for p in team2),
+        inline=False
+    )
+
+    # FIX: bezpieczne ustawienie stopki
+    if ctx.guild.icon:
+        embed.set_footer(
+            text="Losowy podział graczy",
+            icon_url=ctx.guild.icon.url
+        )
+    else:
+        embed.set_footer(text="Losowy podział graczy")
 
     await ctx.send(embed=embed)
-
 
 
 
